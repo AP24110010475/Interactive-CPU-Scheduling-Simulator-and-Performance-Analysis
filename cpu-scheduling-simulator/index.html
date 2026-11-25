@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Interactive CPU Scheduling Simulator &amp; Performance Analysis</title>
+  <meta name="description" content="Computer Organization and Architecture (COA) Interactive CPU Scheduling Simulator with Gantt Chart visualization, performance metrics, and algorithm comparison." />
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+
+  <!-- Chart.js & Lucide Icons -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="bg-orbs" aria-hidden="true">
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="orb orb-3"></div>
+  </div>
+
+  <!-- Mobile Header -->
+  <header class="mobile-header">
+    <button id="menuToggleBtn" class="icon-btn" aria-label="Toggle navigation">
+      <i data-lucide="menu"></i>
+    </button>
+    <div class="mobile-brand">
+      <i data-lucide="cpu" class="brand-icon"></i>
+      <span>CPU Scheduler</span>
+    </div>
+    <button id="mobileRunBtn" class="btn btn-primary btn-sm">
+      <i data-lucide="play"></i>
+      <span>Run</span>
+    </button>
+  </header>
+
+  <div class="app-shell">
+    <!-- Sidebar Navigation -->
+    <aside id="sidebar" class="sidebar">
+      <div class="sidebar-header">
+        <div class="brand-logo">
+          <div class="brand-badge">
+            <i data-lucide="cpu"></i>
+          </div>
+          <div>
+            <h1 class="brand-title">COA Simulator</h1>
+            <p class="brand-subtitle">CPU Scheduling Lab</p>
+          </div>
+        </div>
+        <button id="closeSidebarBtn" class="icon-btn mobile-only" aria-label="Close navigation">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+
+      <nav class="sidebar-nav" aria-label="Main sections">
+        <a href="#dashboard-section" class="nav-link active" data-section="dashboard-section">
+          <i data-lucide="layout-dashboard"></i>
+          <span>Dashboard</span>
+        </a>
+        <a href="#process-section" class="nav-link" data-section="process-section">
+          <i data-lucide="list-plus"></i>
+          <span>Process Manager</span>
+        </a>
+        <a href="#gantt-section" class="nav-link" data-section="gantt-section">
+          <i data-lucide="bar-chart-horizontal"></i>
+          <span>Gantt &amp; Simulation</span>
+        </a>
+        <a href="#metrics-section" class="nav-link" data-section="metrics-section">
+          <i data-lucide="table-2"></i>
+          <span>Performance Analysis</span>
+        </a>
+        <a href="#comparison-section" class="nav-link" data-section="comparison-section">
+          <i data-lucide="git-compare"></i>
+          <span>Algorithm Comparison</span>
+        </a>
+        <a href="#guide-section" class="nav-link" data-section="guide-section">
+          <i data-lucide="book-open"></i>
+          <span>Algorithm Guide</span>
+        </a>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="sidebar-card">
+          <div class="sidebar-card-title">
+            <i data-lucide="info"></i>
+            <span>Priority Rule</span>
+          </div>
+          <p>Lower priority number indicates <strong>higher priority</strong> (1 = Highest).</p>
+        </div>
+        <div class="sidebar-meta">
+          <span>COA Academic Project</span>
+          <span class="badge-live">Ready</span>
+        </div>
+      </div>
+    </aside>
+
+    <div id="sidebarOverlay" class="sidebar-overlay"></div>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <!-- Top Bar -->
+      <header class="topbar">
+        <div>
+          <h2 class="page-title">Interactive CPU Scheduling Simulator &amp; Performance Analysis</h2>
+          <p class="page-subtitle">Visualize process execution, analyze scheduling metrics, and compare algorithms in real time.</p>
+        </div>
+        <div class="topbar-actions">
+          <div class="preset-group">
+            <label for="datasetPreset" class="sr-only">Load Dataset Preset</label>
+            <select id="datasetPreset" class="select-control" title="Choose a sample dataset">
+              <option value="standard">Preset: Standard COA (4 Procs)</option>
+              <option value="idle">Preset: With CPU Idle Gap</option>
+              <option value="convoy">Preset: Convoy Effect Demo</option>
+              <option value="burst">Preset: Mixed Burst &amp; Priority</option>
+            </select>
+          </div>
+          <button id="exportCsvBtn" class="btn btn-outline" title="Download performance results as CSV">
+            <i data-lucide="download"></i>
+            <span>Export CSV</span>
+          </button>
+        </div>
+      </header>
+
+      <!-- Simulation Control Bar -->
+      <section class="glass-card control-bar" aria-label="Simulation Controls">
+        <div class="control-group">
+          <label for="algorithmSelect" class="control-label">
+            Algorithm
+            <span class="tooltip-trigger" data-tooltip="Choose the CPU scheduling algorithm to simulate">?</span>
+          </label>
+          <select id="algorithmSelect" class="select-control">
+            <option value="fcfs">FCFS — First Come First Serve</option>
+            <option value="sjf">SJF — Shortest Job First (Non-Preemptive)</option>
+            <option value="srtf">SRTF — Shortest Remaining Time First (Preemptive)</option>
+            <option value="priority">Priority Scheduling (Non-Preemptive)</option>
+            <option value="rr">Round Robin (Preemptive)</option>
+          </select>
+        </div>
+
+        <div class="control-group" id="quantumGroup">
+          <label for="timeQuantumInput" class="control-label">
+            Time Quantum
+            <span class="tooltip-trigger" data-tooltip="Maximum CPU time slice per turn in Round Robin">?</span>
+          </label>
+          <input type="number" id="timeQuantumInput" class="input-control input-sm" min="1" max="50" value="2" />
+        </div>
+
+        <div class="control-group">
+          <label for="speedSelect" class="control-label">
+            Anim Speed
+            <span class="tooltip-trigger" data-tooltip="Playback speed for animated Gantt execution">?</span>
+          </label>
+          <select id="speedSelect" class="select-control">
+            <option value="900">0.5x (Slow)</option>
+            <option value="500" selected>1x (Normal)</option>
+            <option value="250">2x (Fast)</option>
+            <option value="100">4x (Turbo)</option>
+          </select>
+        </div>
+
+        <div class="control-actions">
+          <button id="startSimBtn" class="btn btn-primary">
+            <i data-lucide="play"></i>
+            <span>Start Simulation</span>
+          </button>
+          <button id="playPauseBtn" class="btn btn-secondary" disabled>
+            <i data-lucide="pause"></i>
+            <span id="playPauseLabel">Pause</span>
+          </button>
+          <button id="resetSimBtn" class="btn btn-ghost" title="Reset simulation animation">
+            <i data-lucide="rotate-ccw"></i>
+            <span>Reset</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- MODULE 1: DASHBOARD -->
+      <section id="dashboard-section" class="section">
+        <div class="section-header">
+          <div class="section-title-wrap">
+            <i data-lucide="layout-dashboard" class="section-icon"></i>
+            <h3>Overview Dashboard</h3>
+          </div>
+          <span id="simStatusBadge" class="status-pill status-ready">Simulation Ready</span>
+        </div>
+
+        <div class="kpi-grid">
+          <article class="glass-card kpi-card kpi-blue">
+            <div class="kpi-top">
+              <span class="kpi-label">Total Processes</span>
+              <div class="kpi-icon"><i data-lucide="layers"></i></div>
+            </div>
+            <div class="kpi-value" id="kpiTotalProcesses">0</div>
+            <div class="kpi-sub" id="kpiTotalBurst">Total Burst: 0 units</div>
+          </article>
+
+          <article class="glass-card kpi-card kpi-purple">
+            <div class="kpi-top">
+              <span class="kpi-label">Selected Algorithm</span>
+              <div class="kpi-icon"><i data-lucide="cpu"></i></div>
+            </div>
+            <div class="kpi-value kpi-value-sm" id="kpiAlgorithm">FCFS</div>
+            <div class="kpi-sub" id="kpiAlgorithmType">Non-Preemptive</div>
+          </article>
+
+          <article class="glass-card kpi-card kpi-cyan">
+            <div class="kpi-top">
+              <span class="kpi-label">Avg Waiting Time</span>
+              <div class="kpi-icon"><i data-lucide="clock"></i></div>
+            </div>
+            <div class="kpi-value" id="kpiAvgWT">0.00</div>
+            <div class="kpi-sub">time units</div>
+          </article>
+
+          <article class="glass-card kpi-card kpi-indigo">
+            <div class="kpi-top">
+              <span class="kpi-label">Avg Turnaround Time</span>
+              <div class="kpi-icon"><i data-lucide="timer"></i></div>
+            </div>
+            <div class="kpi-value" id="kpiAvgTAT">0.00</div>
+            <div class="kpi-sub">time units</div>
+          </article>
+
+          <article class="glass-card kpi-card kpi-emerald">
+            <div class="kpi-top">
+              <span class="kpi-label">CPU Utilization</span>
+              <div class="kpi-icon"><i data-lucide="activity"></i></div>
+            </div>
+            <div class="kpi-value" id="kpiCpuUtil">0.0%</div>
+            <div class="kpi-sub" id="kpiThroughput">Throughput: 0.00 proc/unit</div>
+          </article>
+        </div>
+
+        <div class="glass-card summary-banner">
+          <div class="summary-icon">
+            <i data-lucide="sparkles"></i>
+          </div>
+          <div>
+            <h4 id="summaryAlgoTitle">First Come First Serve (FCFS)</h4>
+            <p id="summaryAlgoDesc">Executes processes strictly in the order of their arrival time.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- MODULE 2: PROCESS MANAGEMENT -->
+      <section id="process-section" class="section">
+        <div class="section-header">
+          <div class="section-title-wrap">
+            <i data-lucide="list-plus" class="section-icon"></i>
+            <h3>Process Management</h3>
+          </div>
+          <div class="section-actions">
+            <button id="loadSampleBtn" class="btn btn-outline btn-sm">
+              <i data-lucide="database"></i>
+              <span>Load Sample</span>
+            </button>
+            <button id="clearProcessesBtn" class="btn btn-danger-outline btn-sm">
+              <i data-lucide="trash-2"></i>
+              <span>Clear All</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="process-grid">
+          <!-- Add / Edit Form -->
+          <div class="glass-card form-card">
+            <h4 class="card-title" id="formTitle">Add New Process</h4>
+            <form id="processForm" novalidate>
+              <input type="hidden" id="editingIndex" value="-1" />
+              <div class="form-row">
+                <div class="form-field">
+                  <label for="procIdInput">Process ID</label>
+                  <input type="text" id="procIdInput" class="input-control" placeholder="e.g. P5" maxlength="10" required />
+                </div>
+                <div class="form-field">
+                  <label for="procAtInput">Arrival Time</label>
+                  <input type="number" id="procAtInput" class="input-control" min="0" step="1" value="0" required />
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-field">
+                  <label for="procBtInput">Burst Time</label>
+                  <input type="number" id="procBtInput" class="input-control" min="1" step="1" value="4" required />
+                </div>
+                <div class="form-field">
+                  <label for="procPrioInput">
+                    Priority
+                    <span class="tooltip-trigger" data-tooltip="1 = Highest Priority">?</span>
+                  </label>
+                  <input type="number" id="procPrioInput" class="input-control" min="1" step="1" value="1" required />
+                </div>
+              </div>
+
+              <div id="formError" class="form-error" role="alert" hidden></div>
+
+              <div class="form-actions">
+                <button type="submit" id="submitProcBtn" class="btn btn-primary full-width">
+                  <i data-lucide="plus"></i>
+                  <span id="submitProcLabel">Add Process</span>
+                </button>
+                <button type="button" id="cancelEditBtn" class="btn btn-ghost" hidden>Cancel</button>
+              </div>
+            </form>
+          </div>
+
+          <!-- Process Table -->
+          <div class="glass-card table-card">
+            <div class="table-header-row">
+              <h4 class="card-title">Ready Process Queue (<span id="procCountBadge">0</span>)</h4>
+              <span class="hint-text">Click edit to modify any process</span>
+            </div>
+            <div class="table-responsive">
+              <table class="data-table" id="processTable">
+                <thead>
+                  <tr>
+                    <th>Process</th>
+                    <th>Arrival Time (AT)</th>
+                    <th>Burst Time (BT)</th>
+                    <th>Priority</th>
+                    <th class="text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="processTableBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- MODULE 4 & 7: GANTT CHART VISUALIZATION -->
+      <section id="gantt-section" class="section">
+        <div class="section-header">
+          <div class="section-title-wrap">
+            <i data-lucide="bar-chart-horizontal" class="section-icon"></i>
+            <h3>Gantt Chart Visualization</h3>
+          </div>
+          <div class="sim-progress-meta">
+            <span>Clock: <strong id="simClockDisplay">0</strong> / <strong id="simTotalTimeDisplay">0</strong></span>
+            <span class="divider">|</span>
+            <span>Active: <strong id="simActiveProc">Idle</strong></span>
+          </div>
+        </div>
+
+        <div class="glass-card gantt-card">
+          <div class="gantt-legend" id="ganttLegend"></div>
+
+          <div class="progress-track">
+            <div class="progress-fill" id="simProgressBar"></div>
+          </div>
+
+          <div class="gantt-scroll-wrap">
+            <div id="ganttChartContainer" class="gantt-chart"></div>
+          </div>
+
+          <div class="execution-sequence-wrap">
+            <span class="seq-label">Execution Sequence:</span>
+            <div id="executionSequence" class="execution-sequence"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- MODULE 5: PERFORMANCE ANALYSIS -->
+      <section id="metrics-section" class="section">
+        <div class="section-header">
+          <div class="section-title-wrap">
+            <i data-lucide="table-2" class="section-icon"></i>
+            <h3>Performance Analysis</h3>
+          </div>
+          <div class="metrics-pills" id="metricsSummaryPills"></div>
+        </div>
+
+        <div class="glass-card table-card">
+          <div class="table-responsive">
+            <table class="data-table" id="metricsTable">
+              <thead>
+                <tr>
+                  <th>Process</th>
+                  <th>AT</th>
+                  <th>BT</th>
+                  <th>Priority</th>
+                  <th>CT <span class="tooltip-trigger" data-tooltip="Completion Time">?</span></th>
+                  <th>TAT <span class="tooltip-trigger" data-tooltip="Turnaround Time = CT - AT">?</span></th>
+                  <th>WT <span class="tooltip-trigger" data-tooltip="Waiting Time = TAT - BT">?</span></th>
+                  <th>RT <span class="tooltip-trigger" data-tooltip="Response Time = First Start - AT">?</span></th>
+                </tr>
+              </thead>
+              <tbody id="metricsTableBody"></tbody>
+              <tfoot id="metricsTableFoot"></tfoot>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- MODULE 6: ALGORITHM COMPARISON -->
+      <section id="comparison-section" class="section">
+        <div class="section-header">
+          <div class="section-title-wrap">
+            <i data-lucide="git-compare" class="section-icon"></i>
+            <h3>Algorithm Comparison</h3>
+          </div>
+          <span class="hint-text">All 5 algorithms evaluated on your current process dataset (RR uses current Time Quantum)</span>
+        </div>
+
+        <div class="best-badges-grid" id="bestPerformersGrid"></div>
+
+        <div class="charts-grid">
+          <div class="glass-card chart-card">
+            <h4 class="card-title">Time Metrics Comparison (Lower is Better)</h4>
+            <div class="chart-wrap">
+              <canvas id="timeComparisonChart"></canvas>
+            </div>
+          </div>
+          <div class="glass-card chart-card">
+            <h4 class="card-title">CPU Utilization (%) Comparison</h4>
+            <div class="chart-wrap">
+              <canvas id="utilComparisonChart"></canvas>
+            </div>
+          </div>
+          <div class="glass-card chart-card">
+            <h4 class="card-title">Throughput (Processes / Unit Time)</h4>
+            <div class="chart-wrap">
+              <canvas id="throughputComparisonChart"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <div class="glass-card table-card">
+          <h4 class="card-title">Side-by-Side Comparison Matrix</h4>
+          <div class="table-responsive">
+            <table class="data-table" id="comparisonTable">
+              <thead>
+                <tr>
+                  <th>Algorithm</th>
+                  <th>Avg WT</th>
+                  <th>Avg TAT</th>
+                  <th>Avg RT</th>
+                  <th>CPU Utilization</th>
+                  <th>Throughput</th>
+                  <th>Total Time</th>
+                </tr>
+              </thead>
+              <tbody id="comparisonTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- MODULE 8: ALGORITHM GUIDE -->
+      <section id="guide-section" class="section">
+        <div class="section-header">
+          <div class="section-title-wrap">
+            <i data-lucide="book-open" class="section-icon"></i>
+            <h3>CPU Scheduling Algorithms Guide</h3>
+          </div>
+        </div>
+
+        <div class="guide-grid">
+          <article class="glass-card guide-card">
+            <div class="guide-badge badge-blue">Non-Preemptive</div>
+            <h4>1. First Come First Serve (FCFS)</h4>
+            <p>Processes are dispatched strictly in order of arrival using a FIFO queue.</p>
+            <ul>
+              <li><strong>Pros:</strong> Simple to implement, zero starvation.</li>
+              <li><strong>Cons:</strong> Convoy effect when a long CPU-bound job arrives first.</li>
+            </ul>
+          </article>
+
+          <article class="glass-card guide-card">
+            <div class="guide-badge badge-purple">Non-Preemptive</div>
+            <h4>2. Shortest Job First (SJF)</h4>
+            <p>Selects the arrived process with the smallest burst time whenever the CPU becomes free.</p>
+            <ul>
+              <li><strong>Pros:</strong> Provably optimal average waiting time for non-preemptive scheduling.</li>
+              <li><strong>Cons:</strong> Can cause starvation for long jobs; burst time must be known/estimated.</li>
+            </ul>
+          </article>
+
+          <article class="glass-card guide-card">
+            <div class="guide-badge badge-cyan">Preemptive</div>
+            <h4>3. Shortest Remaining Time First (SRTF)</h4>
+            <p>Preemptive variant of SJF. A newly arrived process preempts the running process if its burst time is smaller than the current remaining time.</p>
+            <ul>
+              <li><strong>Pros:</strong> Minimum possible average waiting time across all algorithms.</li>
+              <li><strong>Cons:</strong> Higher context-switch overhead and potential starvation.</li>
+            </ul>
+          </article>
+
+          <article class="glass-card guide-card">
+            <div class="guide-badge badge-amber">Non-Preemptive</div>
+            <h4>4. Priority Scheduling</h4>
+            <p>Allocates CPU to the arrived process with the highest priority (1 = Highest).</p>
+            <ul>
+              <li><strong>Pros:</strong> Critical system or real-time tasks run before background tasks.</li>
+              <li><strong>Cons:</strong> Indefinite blocking (starvation) of low-priority processes without aging.</li>
+            </ul>
+          </article>
+
+          <article class="glass-card guide-card">
+            <div class="guide-badge badge-emerald">Preemptive</div>
+            <h4>5. Round Robin (RR)</h4>
+            <p>Each ready process gets a fixed Time Quantum in cyclic FIFO order before being preempted.</p>
+            <ul>
+              <li><strong>Pros:</strong> Fair CPU allocation, excellent response time for interactive systems.</li>
+              <li><strong>Cons:</strong> Too small quantum increases context-switch overhead; too large degenerates to FCFS.</li>
+            </ul>
+          </article>
+
+          <article class="glass-card guide-card formula-card">
+            <div class="guide-badge badge-indigo">COA Formulas</div>
+            <h4>Key Performance Equations</h4>
+            <ul class="formula-list">
+              <li><code>TAT = CT - AT</code> (Turnaround Time)</li>
+              <li><code>WT = TAT - BT</code> (Waiting Time)</li>
+              <li><code>RT = First Start - AT</code> (Response Time)</li>
+              <li><code>CPU Util = (Σ BT / Total Time) × 100%</code></li>
+              <li><code>Throughput = N / Total Time</code></li>
+            </ul>
+          </article>
+        </div>
+      </section>
+
+      <footer class="app-footer">
+        <p>Interactive CPU Scheduling Simulator &amp; Performance Analysis &bull; Computer Organization and Architecture (COA)</p>
+      </footer>
+    </main>
+  </div>
+
+  <div id="toastContainer" class="toast-container" aria-live="polite"></div>
+
+  <script src="algorithms.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
